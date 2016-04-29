@@ -16,12 +16,18 @@ except ImportError:
         "See https://github.com/WindowsAzure/azure-sdk-for-python")
 
 try:
-    # azure-storage 0.20.0
-    from azure.storage.blob.blobservice import BlobService
+    # azure-storage 0.31.0
+    from azure.storage.blob.blockblobservice import BlockBlobService as BlobService
     from azure.common import AzureMissingResourceHttpError
-except ImportError:
-    from azure.storage import BlobService
-    from azure import WindowsAzureMissingResourceError as AzureMissingResourceHttpError
+    from azure.storage.blob.models import ContentSettings
+except ImportError as err:
+    try:
+        # azure-storage 0.20.0
+        from azure.storage.blob.blobservice import BlobService
+        from azure.common import AzureMissingResourceHttpError
+    except ImportError:
+        from azure.storage import BlobService
+        from azure import WindowsAzureMissingResourceError as AzureMissingResourceHttpError
 
 from storages.utils import setting
 
@@ -63,7 +69,11 @@ class AzureStorage(Storage):
             return None
 
     def _open(self, name, mode="rb"):
-        contents = self.connection.get_blob(self.azure_container, name)
+        if hasattr(self.connection, 'get_blob'):
+            get_blob = self.connection.get_blob
+        else:
+            get_blob = self.connection.get_blob_to_bytes
+        contents = get_blob(self.azure_container, name)
         return ContentFile(contents)
 
     def exists(self, name):
@@ -80,6 +90,17 @@ class AzureStorage(Storage):
             self.azure_container, name)
         return properties["content-length"]
 
+    def _azure_3_save(self, name, content_type, content_data):
+        content_type = ContentSettings(content_type=content_type)
+        self.connection.create_blob_from_bytes(self.azure_container, name,
+                                               content_data,
+                                               content_settings=content_type)
+
+    def _azure_2_save(self, name, content_type, content_data):
+        self.connection.put_blob(self.azure_container, name,
+                                 content_data, "BlockBlob",
+                                 x_ms_blob_content_type=content_type)
+
     def _save(self, name, content):
         if hasattr(content.file, 'content_type'):
             content_type = content.file.content_type
@@ -91,9 +112,11 @@ class AzureStorage(Storage):
         else:
             content_data = content.read()
 
-        self.connection.put_blob(self.azure_container, name,
-                                 content_data, "BlockBlob",
-                                 x_ms_blob_content_type=content_type)
+        if hasattr(self.connection, 'put_blob'):
+            self._azure_2_save(name, content_type, content_data)
+        else:
+            self._azure_3_save(name, content_type, content_data)
+
         return name
 
     def url(self, name):
