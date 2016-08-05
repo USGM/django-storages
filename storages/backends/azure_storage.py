@@ -120,6 +120,9 @@ class AzureStorage(Storage):
         return name
 
     def url(self, name):
+        cdn_url = setting('AZURE_CDN_URL')
+        if cdn_url:
+            return "{}{}/{}".format(cdn_url, self.azure_container, name)
         if hasattr(self.connection, 'make_blob_url'):
             return self.connection.make_blob_url(
                 container_name=self.azure_container,
