@@ -72,7 +72,8 @@ class AzureStorage(Storage):
         if hasattr(self.connection, 'get_blob'):
             get_blob = self.connection.get_blob
         else:
-            get_blob = self.connection.get_blob_to_bytes
+            def get_blob(azure_container, blob_name):
+                return self.connection.get_blob_to_bytes(azure_container, blob_name).content
         contents = get_blob(self.azure_container, name)
         return ContentFile(contents)
 
@@ -142,3 +143,7 @@ class AzureStorage(Storage):
         modified = datetime.fromtimestamp(mktime(modified))
 
         return modified
+
+    def listdir(self, path):
+        blobs = self.connection.list_blobs(self.azure_container)
+        return [], [blob.name for blob in blobs]
