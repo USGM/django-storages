@@ -4,6 +4,7 @@ import mimetypes
 import time
 from time import mktime
 
+import requests
 from django.core.files.base import ContentFile
 from django.core.exceptions import ImproperlyConfigured
 from storages.compat import Storage
@@ -49,8 +50,11 @@ class AzureStorage(Storage):
     @property
     def connection(self):
         if self._connection is None:
+            session = requests.Session()
+            adapter = requests.adapters.HTTPAdapter(max_retries=5)
+            session.mount('https://', adapter)
             self._connection = BlobService(
-                self.account_name, self.account_key)
+                self.account_name, self.account_key, request_session=session)
         return self._connection
 
     @property
