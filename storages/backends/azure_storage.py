@@ -37,6 +37,13 @@ def clean_name(name):
     return os.path.normpath(name).replace("\\", "/")
 
 
+class AzureAdapter(requests.adapters.HTTPAdapter):
+    def send(self, *args, **kwargs):
+        if 'timeout' not in kwargs:
+            kwargs['timeout'] = 5
+        return super(AzureAdapter, self).send(*args, **kwargs)
+
+
 class AzureStorage(Storage):
     account_name = setting("AZURE_ACCOUNT_NAME")
     account_key = setting("AZURE_ACCOUNT_KEY")
@@ -51,7 +58,7 @@ class AzureStorage(Storage):
     def connection(self):
         if self._connection is None:
             session = requests.Session()
-            adapter = requests.adapters.HTTPAdapter(max_retries=10, timeout=5)
+            adapter = AzureAdapter(max_retries=10)
             session.mount('https://', adapter)
             self._connection = BlobService(
                 self.account_name, self.account_key, request_session=session)
