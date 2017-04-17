@@ -51,7 +51,7 @@ class AzureStorage(Storage):
     def connection(self):
         if self._connection is None:
             session = requests.Session()
-            adapter = requests.adapters.HTTPAdapter(max_retries=5)
+            adapter = requests.adapters.HTTPAdapter(max_retries=10, timeout=5)
             session.mount('https://', adapter)
             self._connection = BlobService(
                 self.account_name, self.account_key, request_session=session)
