@@ -1,4 +1,4 @@
-from datetime import datetime
+import datetime
 import os.path
 import mimetypes
 import time
@@ -31,6 +31,7 @@ except ImportError as err:
         from azure import WindowsAzureMissingResourceError as AzureMissingResourceHttpError
 
 from storages.utils import setting
+from storages.backends.helpers.ectoken3 import encrypt_v3
 
 
 def clean_name(name):
@@ -133,16 +134,23 @@ class AzureStorage(Storage):
 
     def url(self, name):
         cdn_url = setting('AZURE_CDN_URL')
+        full_url = ''
         if cdn_url:
-            return "{}{}/{}".format(cdn_url, self.azure_container, name)
-        if hasattr(self.connection, 'make_blob_url'):
+           full_url = "{}{}/{}".format(cdn_url, self.azure_container, name)
+        elif hasattr(self.connection, 'make_blob_url'):
             return self.connection.make_blob_url(
                 container_name=self.azure_container,
                 blob_name=name,
                 protocol=self.azure_protocol,
             )
         else:
-            return "{}{}/{}".format(setting('MEDIA_URL'), self.azure_container, name)
+            full_url = "{}{}/{}".format(setting('MEDIA_URL'), self.azure_container, name)
+        key = setting('AZURE_CDN_TOKEN_KEY')
+        timeout = setting('AZURE_CDN_TOKEN_TIMEOUT')
+        if key and timeout:
+            # Get GMT timestamp.
+            timestamp = int(datetime.datetime(*(time.gmtime()[:-3])).strftime("%s"))
+            full_url += '?{}'.format(encrypt_v3(key, 'ec_expire={}'.format(timestamp + timeout)))
 
     def modified_time(self, name):
         try:
@@ -151,7 +159,7 @@ class AzureStorage(Storage):
             return super(AzureStorage, self).modified_time(name)
 
         modified = time.strptime(modified, '%a, %d %b %Y %H:%M:%S %Z')
-        modified = datetime.fromtimestamp(mktime(modified))
+        modified = datetime.datetime.fromtimestamp(mktime(modified))
 
         return modified
 

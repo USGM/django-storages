@@ -7,8 +7,8 @@ def read(filename):
         return f.read()
 
 
-def get_requirements_tests():
-    with open('requirements-tests.txt') as f:
+def get_requirements(req_file):
+    with open(req_file) as f:
         return f.readlines()
 
 setup(
@@ -21,6 +21,7 @@ setup(
     description='Support for many storages (S3, MogileFS, etc) in Django.',
     long_description=read('README.rst') + '\n\n' + read('CHANGELOG.rst'),
     url='https://github.com/jschneier/django-storages',
+    install_requires=get_requirements('requirements.txt'),
     classifiers=[
         'Framework :: Django',
         'Development Status :: 5 - Production/Stable',
@@ -36,7 +37,7 @@ setup(
         'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
     ],
-    tests_require=get_requirements_tests(),
+    tests_require=get_requirements('requirements-tests.txt'),
     test_suite='tests',
     zip_safe=False
 )
