@@ -151,6 +151,7 @@ class AzureStorage(Storage):
             # Get GMT timestamp.
             timestamp = int(datetime.datetime(*(time.gmtime()[:-3])).strftime("%s"))
             full_url += '?{}'.format(encrypt_v3(key, 'ec_expire={}'.format(timestamp + timeout)))
+        return full_url
 
     def modified_time(self, name):
         try:
