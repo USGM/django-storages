@@ -100,8 +100,8 @@ class AzureStorage(Storage):
 
     def size(self, name):
         properties = self.connection.get_blob_properties(
-            self.azure_container, name)
-        return properties["content-length"]
+            self.azure_container, name).properties
+        return properties.content_length
 
     def _azure_3_save(self, name, content_type, content_data):
         content_type = ContentSettings(content_type=content_type)
@@ -134,7 +134,6 @@ class AzureStorage(Storage):
 
     def url(self, name):
         cdn_url = setting('AZURE_CDN_URL')
-        full_url = ''
         if cdn_url:
            full_url = "{}{}/{}".format(cdn_url, self.azure_container, name)
         elif hasattr(self.connection, 'make_blob_url'):
