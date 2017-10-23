@@ -34,17 +34,11 @@
 # ------------------------------------------------------------------------------
 import argparse
 import base64
+import os
 import sys
-import random
-import time
-import re
-from struct import pack
 import hashlib
 
-import OpenSSL
-
 from cryptography.hazmat.backends import default_backend
-#from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.ciphers import (Cipher, algorithms, modes)
 
 # ------------------------------------------------------------------------------
@@ -129,11 +123,8 @@ def encrypt_v3(a_key, a_token, a_verbose = False):
     # Get sha-256 of key
     l_key = hashlib.sha256(a_key).hexdigest().decode('hex')
 
-    # Seed rand with time...
-    OpenSSL.rand.seed(str(time.time()))
-
     # Generate iv
-    l_iv = OpenSSL.rand.bytes(G_IV_SIZE_BYTES) # TODO Make constant...
+    l_iv = os.urandom(G_IV_SIZE_BYTES)  # TODO Make constant...
 
     # Construct an AES-GCM Cipher object with the given key and a
     # randomly generated IV.
