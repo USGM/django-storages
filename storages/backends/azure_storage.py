@@ -1,4 +1,4 @@
-import datetime
+from datetime import datetime
 import os.path
 import mimetypes
 import time
@@ -50,6 +50,7 @@ class AzureStorage(Storage):
     account_key = setting("AZURE_ACCOUNT_KEY")
     azure_container = setting("AZURE_CONTAINER")
     azure_ssl = setting("AZURE_SSL")
+    azure_timeout = setting("AZURE_TIMEOUT", None)
 
     def __init__(self, *args, **kwargs):
         super(AzureStorage, self).__init__(*args, **kwargs)
@@ -75,7 +76,8 @@ class AzureStorage(Storage):
         try:
             return self.connection.get_blob_properties(
                 self.azure_container,
-                name
+                name,
+                timeout=self.azure_timeout
             )
         except AzureMissingResourceHttpError:
             return None
@@ -85,7 +87,7 @@ class AzureStorage(Storage):
             get_blob = self.connection.get_blob
         else:
             def get_blob(azure_container, blob_name):
-                return self.connection.get_blob_to_bytes(azure_container, blob_name).content
+                return self.connection.get_blob_to_bytes(azure_container, blob_name, timeout=self.azure_timeout).content
         contents = get_blob(self.azure_container, name)
         return ContentFile(contents)
 
@@ -94,20 +96,21 @@ class AzureStorage(Storage):
 
     def delete(self, name):
         try:
-            self.connection.delete_blob(self.azure_container, name)
+            self.connection.delete_blob(self.azure_container, name, timeout=self.azure_timeout)
         except AzureMissingResourceHttpError:
             pass
 
     def size(self, name):
         properties = self.connection.get_blob_properties(
-            self.azure_container, name).properties
+            self.azure_container, name, timeout=self.azure_timeout).properties
         return properties.content_length
 
     def _azure_3_save(self, name, content_type, content_data):
         content_type = ContentSettings(content_type=content_type)
         self.connection.create_blob_from_bytes(self.azure_container, name,
                                                content_data,
-                                               content_settings=content_type)
+                                               content_settings=content_type,
+                                               timeout=self.azure_timeout)
 
     def _azure_2_save(self, name, content_type, content_data):
         self.connection.put_blob(self.azure_container, name,
@@ -148,7 +151,7 @@ class AzureStorage(Storage):
         timeout = setting('AZURE_CDN_TOKEN_TIMEOUT')
         if key and timeout:
             # Get GMT timestamp.
-            timestamp = int(datetime.datetime(*(time.gmtime()[:-3])).strftime("%s"))
+            timestamp = int(datetime(*(time.gmtime()[:-3])).strftime("%s"))
             full_url += '?{}'.format(encrypt_v3(key, 'ec_expire={}'.format(timestamp + timeout)))
         return full_url
 
@@ -159,10 +162,10 @@ class AzureStorage(Storage):
             return super(AzureStorage, self).modified_time(name)
 
         modified = time.strptime(modified, '%a, %d %b %Y %H:%M:%S %Z')
-        modified = datetime.datetime.fromtimestamp(mktime(modified))
+        modified = datetime.fromtimestamp(mktime(modified))
 
         return modified
 
     def listdir(self, path):
-        blobs = self.connection.list_blobs(self.azure_container)
+        blobs = self.connection.list_blobs(self.azure_container, timeout=self.azure_timeout)
         return [], [blob.name for blob in blobs]
